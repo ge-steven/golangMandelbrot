@@ -3,10 +3,11 @@
 	Date: 2020-03-20
 */
 
+// TODO: Implement mouse usage to navigate
+
 package main
 
 import (
-	"fmt"
 	"image"
 	"image/color"
 	"image/png"
@@ -18,18 +19,24 @@ import (
 )
 
 // Settings for the image
-var width = 3000
-var height = 2000
-var scale = 2.0
-var centerX = -0.5
-var centerY = 0.0
+type Settings struct {
+	Width       int     `json:"Width"`
+	Height      int     `json:"Height"`
+	Scale       float64 `json:"Scale"`
+	CenterX     float64 `json:"CenterX"`
+	CenterY     float64 `json:"CenterY"`
+	RedFactor   int     `json:"RedFactor"`
+	GreenFactor int     `json:"GreenFactor"`
+	BlueFactor  int     `json:"BlueFactor"`
+	MovingSpeed float64 `json:"MovingSpeed"`
+}
+
+var settings Settings
+
 var upLeft image.Point
 var lowRight image.Point
 var min image.Point
 var max image.Point
-var redFactor = 1
-var greenFactor = 1
-var blueFactor = 1
 
 // Amount of threads to be used
 var maxComputingThreads = runtime.NumCPU()
@@ -57,10 +64,10 @@ func compute() {
 	wgComputation.Add(maxComputingThreads)
 
 	// Initialize image
-	min.X = -int(width / 2)
-	max.X = width + min.X
-	min.Y = -int(height / 2)
-	max.Y = height + min.Y
+	min.X = -int(settings.Width / 2)
+	max.X = settings.Width + min.X
+	min.Y = -int(settings.Height / 2)
+	max.Y = settings.Height + min.Y
 
 	upLeft := image.Point{0, 0}
 	lowRight := image.Point{max.X - min.X, max.Y - min.Y}
@@ -93,7 +100,6 @@ func compute() {
 
 	t := time.Now()
 	computationTime = t.Sub(start).Seconds()
-	fmt.Println("Total time: ", t.Sub(start))
 }
 
 // Compute whether the coordinates belong in the set or not.
@@ -116,8 +122,8 @@ func computation(z complex128, coordinates image.Point, iterations int, img imag
 		draw(coordinates, iterations, img)
 		return
 	}
-	x := float64(coordinates.X)/float64(-min.X)*scale + centerX
-	y := float64(coordinates.Y)/float64(-min.Y)*scale + centerY
+	x := float64(coordinates.X)/float64(-min.X)*settings.Scale + settings.CenterX
+	y := float64(coordinates.Y)/float64(-min.Y)*settings.Scale + settings.CenterY
 
 	c := complex(x, y)
 	z = (z * z) + c
@@ -128,7 +134,7 @@ func computation(z complex128, coordinates image.Point, iterations int, img imag
 func draw(coordinates image.Point, iterations int, img image.RGBA) {
 	// draw the value given
 	colorValue := uint8(iterations)
-	pixelColor := color.RGBA{colorValue * uint8(redFactor), colorValue * uint8(blueFactor), colorValue * uint8(greenFactor), 0xff}
+	pixelColor := color.RGBA{colorValue * uint8(settings.RedFactor), colorValue * uint8(settings.BlueFactor), colorValue * uint8(settings.GreenFactor), 0xff}
 	x := coordinates.X - min.X
 	y := coordinates.Y - min.Y
 
