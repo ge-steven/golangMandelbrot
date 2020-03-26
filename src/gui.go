@@ -3,20 +3,26 @@
 	Date: 2020-03-20
 */
 
-// TODO: mouse navigation
-// TODO: smooth navigation (lower the loading time while navigating)
+// TODO: smooth navigation
+// - Find proper resolution for navigation
+// - Handle long pressed keys/drags properly (no queueing the key presses)
+// TODO: Sometimes displays in a weird format. Need fix
+// TODO: Implement scroll to zoom
+
+// Recommended navigation resolution: 250x125
 
 package main
 
 import (
+	"bufio"
 	"encoding/json"
 	"fmt"
 	"io/ioutil"
+	"os"
 	"strconv"
 
 	"fyne.io/fyne"
 	"fyne.io/fyne/app"
-	"fyne.io/fyne/canvas"
 	"fyne.io/fyne/layout"
 	"fyne.io/fyne/widget"
 )
@@ -32,6 +38,9 @@ var imagePath = "image.png"
 // Resolution
 var widthEntry = widget.NewEntry()
 var heightEntry = widget.NewEntry()
+var dragWidth int
+var dragHeight int
+var released = true
 
 // Color factors
 var redFactorEntry = widget.NewEntry()
@@ -46,10 +55,15 @@ var zoomSpeedEntry = widget.NewEntry()
 var centerXEntry = widget.NewEntry()
 var centerYEntry = widget.NewEntry()
 
-// Load image
-var img = canvas.NewImageFromFile(imagePath)
+// Image
+var img fyne.Resource
+
+type dragableScrollableIcon struct {
+	widget.Icon
+}
 
 func main() {
+	// Load settings
 	byteValue, err := ioutil.ReadFile("./settings.json")
 	if err != nil {
 		fmt.Print(err)
@@ -152,6 +166,26 @@ func setInterface(loadingString string) {
 		fmt.Println("error:", err)
 	}
 
+	// Load image
+	file, err := os.Open(imagePath)
+
+	if err != nil {
+		fmt.Println(err)
+		os.Exit(1)
+	}
+
+	defer file.Close()
+
+	fileInfo, _ := file.Stat()
+	var size int64 = fileInfo.Size()
+	bytes := make([]byte, size)
+
+	// read file into bytes
+	buffer := bufio.NewReader(file)
+	_, err = buffer.Read(bytes)
+
+	img = fyne.NewStaticResource("image", bytes)
+
 	// Set the values of the button (Needed when using mouse/keyboard controls)
 	// Set initial values and placeholder of resolution settings fields
 	widthEntry.SetText(strconv.Itoa(settings.Width))
@@ -204,9 +238,10 @@ func setInterface(loadingString string) {
 		widget.NewLabel(loadingString))
 
 	// Defining the layout of the window
+	r := newdragableScrollableIcon(img)
 	container := fyne.NewContainerWithLayout(
 		layout.NewBorderLayout(nil, nil, settingsList, nil),
-		settingsList, img,
+		settingsList, r,
 	)
 	win.SetContent(container)
 }
@@ -225,11 +260,82 @@ func move(movement string) {
 		settings.CenterY = settings.CenterY + (settings.Scale * settings.MovingSpeed)
 
 	case "I":
-		settings.Scale = settings.Scale - settings.MovingSpeed
+		settings.Scale = settings.Scale - (settings.Scale * settings.MovingSpeed)
 	case "O":
-		settings.Scale = settings.Scale + settings.MovingSpeed
+		settings.Scale = settings.Scale + (settings.Scale * settings.MovingSpeed)
 	}
 	// Recompute and refresh image
 	compute()
 	setInterface("Computation time:\n" + strconv.FormatFloat(computationTime, 'E', 5, 64) + "\nSeconds")
+}
+
+func drag(x int, y int) {
+	// Print loading in window
+	setInterface("Loading")
+	settings.CenterX = settings.CenterX - (settings.Scale * float64(x) * settings.MovingSpeed)
+	settings.CenterY = settings.CenterY - (settings.Scale * float64(y) * settings.MovingSpeed)
+	// Recompute and refresh image
+	compute()
+	setInterface("Computation time:\n" + strconv.FormatFloat(computationTime, 'E', 5, 64) + "\nSeconds")
+}
+
+func scroll(s int) {
+	// Print loading in window
+	// setInterface("Loading")
+
+	settings.Scale = settings.Scale - (settings.Scale * settings.MovingSpeed * float64(s))
+
+	fmt.Println(s)
+	// Recompute and refresh image
+	compute()
+	// setInterface("Computation time:\n" + strconv.FormatFloat(computationTime, 'E', 5, 64) + "\nSeconds")
+}
+
+func (t *dragableScrollableIcon) Dragged(d *fyne.DragEvent) {
+	if released {
+		dragWidth = settings.Width
+		dragHeight = settings.Height
+		released = false
+	}
+
+	settings.Width = 200
+	settings.Height = 100
+
+	drag(d.DraggedX, d.DraggedY)
+	// log.Println(d.DraggedX, " ", d.DraggedY)
+}
+
+func (t *dragableScrollableIcon) DragEnd() {
+	// Print loading in window
+	setInterface("Loading")
+	settings.Width = dragWidth
+	settings.Height = dragHeight
+	// Recompute and refresh image
+	compute()
+	setInterface("Computation time:\n" + strconv.FormatFloat(computationTime, 'E', 5, 64) + "\nSeconds")
+	released = true
+}
+
+func (t *dragableScrollableIcon) Scrolled(s *fyne.ScrollEvent) {
+	if released {
+		dragWidth = settings.Width
+		dragHeight = settings.Height
+		released = false
+	}
+	settings.Width = 200
+	settings.Height = 100
+
+	scroll(s.DeltaY)
+
+	settings.Width = dragWidth
+	settings.Height = dragHeight
+	released = true
+}
+
+func newdragableScrollableIcon(res fyne.Resource) *dragableScrollableIcon {
+	icon := &dragableScrollableIcon{}
+	icon.ExtendBaseWidget(icon)
+	icon.SetResource(res)
+
+	return icon
 }

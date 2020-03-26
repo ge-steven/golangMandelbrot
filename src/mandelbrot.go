@@ -3,8 +3,6 @@
 	Date: 2020-03-20
 */
 
-// TODO: Implement mouse usage to navigate
-
 package main
 
 import (
