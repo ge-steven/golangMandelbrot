@@ -9,8 +9,6 @@
 // TODO: Sometimes displays in a weird format. Need fix
 // TODO: Implement scroll to zoom
 
-// Recommended navigation resolution: 250x125
-
 package main
 
 import (
@@ -246,6 +244,7 @@ func setInterface(loadingString string) {
 	win.SetContent(container)
 }
 
+// Keyboard navigation
 func move(movement string) {
 	// Print loading in window
 	setInterface("Loading")
@@ -269,6 +268,7 @@ func move(movement string) {
 	setInterface("Computation time:\n" + strconv.FormatFloat(computationTime, 'E', 5, 64) + "\nSeconds")
 }
 
+// Mouse navigation functions
 func drag(x int, y int) {
 	// Print loading in window
 	setInterface("Loading")
@@ -298,11 +298,10 @@ func (t *dragableScrollableIcon) Dragged(d *fyne.DragEvent) {
 		released = false
 	}
 
-	settings.Width = 200
-	settings.Height = 100
+	settings.Width = 50
+	settings.Height = 25
 
 	drag(d.DraggedX, d.DraggedY)
-	// log.Println(d.DraggedX, " ", d.DraggedY)
 }
 
 func (t *dragableScrollableIcon) DragEnd() {
@@ -322,8 +321,8 @@ func (t *dragableScrollableIcon) Scrolled(s *fyne.ScrollEvent) {
 		dragHeight = settings.Height
 		released = false
 	}
-	settings.Width = 200
-	settings.Height = 100
+	settings.Width = 50
+	settings.Height = 25
 
 	scroll(s.DeltaY)
 
